@@ -13,5 +13,4 @@ torch
 elephant==0.7.0
 joblib==1.0.1
 scikit_optimize==0.8.0
-ipython==8.4.0
-numpy==1.22.4
+numpy
