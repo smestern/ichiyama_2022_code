@@ -4,12 +4,12 @@ neo==0.8.0
 h5py==2.10.0
 Brian2==2.4
 dill==0.3.3
-ipfx==0.1.1
+ipfx
 sbi==0.16.0
 scipy==1.5.4
 nevergrad==0.4.3
 quantities==0.12.4
-torch==1.11.0+cu113
+torch
 elephant==0.7.0
 joblib==1.0.1
 scikit_optimize==0.8.0
