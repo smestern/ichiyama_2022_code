@@ -1,0 +1,1 @@
+drift = 0.0022 / 862.5594 ; % seconds, based on artifact drift

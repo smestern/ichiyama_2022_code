@@ -1,0 +1,70 @@
+MATLAB analysis scripts and outputs for figures in Ichiyama A, Mestern S, et al., 2022. eLife.
+
+Import data and adjust input parameters.
+
+Figure 1. opto_analysis.m
+Light response t-test: optostats.opto_ttest(:,2) for h, (:,3) for p-value
+Light response latency: optostats.opto_latency(:,3)
+1C. optoraster.opto_all.all_time(:,n) ; optoraster.opto_all.all_trial(:,n)
+1D. optostats.opto_prob(:,2) for pre (:,3) for post
+1E. optoraster.opto_all.all_time(:,n) ; optoraster.opto_all.all_trial(:,n)
+1F. optoMeanFiringRate.opto_all(2:end,2:end)
+
+Figure 2. baseline_analysis.m
+2B. BL_ISI_unit(:,n)
+2C. BL_meanFiringRate(:,5)
+2D. BL_spikesperBurst_units
+2E. BL_IBI_unit
+2Suppl. BL_ISI_unit(:,n)
+
+Figure 3A-I. sciatic_analysis.m
+3A. histogram of NSraster.NS_all.all_time(:,n)
+3B. NSraster.NS_all.all_time(:,n) ; NSraster.NS_all.all_trial(:,n)
+3C. NSraster.NS_burst.burst_time(:,n) ; NSraster.NS_burst.burst_trial(:,n)
+3D. NSraster.NS_single.single_time(:,n) ; NSraster.NS_single.single_trial(:,n)
+3E. NS_meanFiringRate.NS_burst(2:end,2:end)
+3F. NS_meanFiringRate.NS_single(2:end,:2:end)
+3G. NS_meanFiringRate.NS_all(2:end,col= first bin after 0) (BL from baseline_analysis.m, BL_meanFiringRate(:,2))
+3H. NS_meanFiringRate.NS_burstEp(2:end,col= first bin after 0) (BL from baseline_analysis.m, BL_meanFiringRate(:,5))
+3I. NS_meanFiringRate.NS_single(2:end,col= first bin after 0) (BL from baseline_analysis.m, BL_meanFiringRate(:,3))
+
+Figure 3J-M. baseline_analysis.m
+3J. BL_tBin_units(:,n) ; BL_tBinSmooth_units(:,n)
+3K. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+3L. BL_tBin_units(:,n) ; BL_tBin_burstEp_units(:,n)
+3M. BL_tBin_units ; BL_tBin_burstEp_units
+3Suppl. NSraster
+
+Figure 4. baseline_analysis.m
+4A. ISI_pre ; ISI_post
+4B. probPreISI_byPost
+4C. probPostISI_byPre
+4D. BL_meanPrePostEvent.pre_ISI
+4E. BL_meanPrePostEvent.post_ISI
+
+Figure 5. baseline_analysis.m
+5D. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+5E. BL_spikesperBurst_units
+5F. BL_IBI_units
+5G. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+5H. BL_meanFiringRate(:,2)
+5I. BL_meanFiringRate(:,5)
+5J. BL_meanFiringRate(:,3)
+5K. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+5L. BL_meanFiringRate(:,2)
+5M. BL_meanFiringRate(:,5)
+5N. BL_meanFiringRate(:,3)
+5O. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+5P. BL_ISI_units(:,n) ; BL_TS_units(:,n) ; BL_tBinSmooth_units(:,n)
+5Q. BL_meanFiringRate(:,2)
+
+Figure 6. baseline_analysis.m
+6B. BL_ISI_units(:,n) ; BL_TS_units(:,n)
+6C. BL_ISI_units(:,n) ; BL_TS_units(:,n)
+6H. --
+6K. --
+6N. --
+6E. BL_ISI_units(:,n) ; BL_TS_units(:,n)
+6O. BL_ISI_units(:,n) ; BL_TS_units(:,n)
+5P. BL_ISI_units(:,n) ; BL_TS_units(:,n)
+6Q. BL_ISI_units(:,n) ; BL_TS_units(:,n) 
