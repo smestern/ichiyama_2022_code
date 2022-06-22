@@ -1,5 +1,8 @@
 
-
+"""
+The General fitting script for the network. Note that this script is linked to the switch script helper.
+Paths will need to be adjusted in the both this and the net scan switch helper script
+"""
 from multiprocessing import freeze_support
 from utils import *
 import time
