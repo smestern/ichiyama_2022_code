@@ -115,10 +115,10 @@ class adExModel(brian2_model):
         CRH.gL = (self.Cm * pF) / (self.taum * ms); 
         CRH.EL = self.EL* mV;
         CRH.VT = self.VT * mV;
-        CRH.Vcut = 0 * mV;
+        CRH.Vcut = (self.VT + 5 * self.DeltaT) * mV;
         CRH.refrac = self.refrac*ms;
         CRH.DeltaT = self.DeltaT * mV; 
-        
+        CRH.refrac = self.refrac* ms;
         CRH.VR = self.VR *mV
         
 

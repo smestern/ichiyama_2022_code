@@ -10,7 +10,7 @@ from joblib import dump, load
 from b2_model.error import weightedErrorMetric
 import nevergrad.common.typing as tp
 import nevergrad as ng
-from skopt import Optimizer, space, plots
+#from skopt import Optimizer, space, plots
 TBPSAwithHam = ng.optimizers.Chaining([ng.optimizers.ScrHammersleySearch, ng.optimizers.NaiveTBPSA], ["num_workers"])
 DEwithHam = ng.optimizers.Chaining([ng.optimizers.ScrHammersleySearch, ng.optimizers.TwoPointsDE], ["num_workers"])
 class snmOptimizer():

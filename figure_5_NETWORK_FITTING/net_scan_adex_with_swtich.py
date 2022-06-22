@@ -19,71 +19,6 @@ warnings.filterwarnings("ignore")
 BrianLogger.suppress_hierarchy('brian2.codegen')
 BrianLogger.suppress_hierarchy('brian2.groups.group.Group.resolve.resolution_conflict')
 
-def main():
-
-    # In[2]:
-
-
-    from skopt import Optimizer, space
-    param_space = space.Space([(0.2, 60), ##Ee
-                            (0.2, 25.1), ##Ii
-                                (2, 50),##de
-                            (2, 1500),#di
-                            (0.5, 200), #drch
-                            (50,1500)])   #input hz
-                            
-    opt = Optimizer(dimensions=param_space, acq_optimizer="auto", n_initial_points=20, model_queue_size=12) ##Bayes optimizer
-    #opt.tell(points.tolist(), dist.tolist())
-
-
-    # In[5]:
-
-    opt = load("opt.pkl")
-    full_dist = []
-    param_list_temp = []
-    param_list = []
-    for i in np.arange(200):
-        print(f"Round {i} start")
-        start_time = time.time()
-        clear_output(wait=True)
-        temp = opt.ask(n_points=4)
-        for points in temp:
-            print(points)
-            network_scan(*points)
-        y = Parallel(n_jobs=4, backend='multiprocessing')(delayed(network_scan)(*points) for points in temp)
-        print(f"Round {i} Complete with min {np.amin(y)}")
-        param_list.append(temp)
-        opt.tell(temp, y)
-        dump(opt, "opt.pkl")
-        opt_results = opt.get_result()
-        
-        dump(opt_results, "opt_res.pkl")
-        print(f"iter {i} finished {(time.time()-start_time)/60}")
-
-
-    # In[ ]:
-
-
-    opt_results = opt.get_result()
-    
-
-
-    # In[ ]:
-
-
-    
-    dump(opt_results, "opt_res.pkl")
-
-
-    # In[ ]:
-
-
-    from skopt.plots import plot_objective
-    plot_objective(opt_results)
-    print('d')
-
-    # In[ ]:
-
 def nevergrad():
     import nevergrad as ng
     
@@ -166,6 +101,5 @@ def nevergrad():
 if __name__ == '__main__':
     freeze_support()
     nevergrad()
-    #main()
 
 

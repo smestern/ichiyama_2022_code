@@ -4,6 +4,7 @@ from scipy.stats import mode, pearsonr
 from scipy import interpolate
 from scipy.spatial import distance
 from scipy.signal import find_peaks
+import numpy as np
 from brian2 import pF, pA, nS, mV, NeuronGroup, pamp, run, second, StateMonitor, ms, TimedArray, size, nan, array, reshape, \
     shape, volt, siemens, amp
 from loadNWB import loadNWB
@@ -16,7 +17,6 @@ except:
     print('Spike distance lib import failed')
 
 
-from smoothn import *
 from brian2 import plot
 
 

@@ -60,69 +60,6 @@ _labels = ['Cm', 'taum', 'EL', 'a', 'b',
                     'refrac']
 
 
-def plot_results(param_dict, model):
-    realX, realY = model.realX, model.realY
-    figure(figsize=(10,10), num=15)
-    clf()
-    model.set_params(param_dict)
-    model.set_params({'N': 1})
-    print(model.get_params())
-    for x in [0,3,5]:
-        spikes, traces = model.run_current_sweep(x)
-        
-        plot(realX[x,:], realY[x,:], label=f"Real Sweep {x}", c='k')
-        plot(realX[x,:], traces.v[0] /mV, label="Sim sweep {x}", c='r')
-        if len(spikes.t) > 0:
-            scatter(spikes.t, np.full(spikes.t.shape[0], 60) ,label="Sim spike times", c='r')
-    
-    ylim(-100, 70)
-    return
-
-def plot_IF(param_dict, model):
-    realX, realY, realC = model.realX, model.realY, model.realC
-    figure(figsize=(10,10), num=13)
-    clf()
-    model.set_params(param_dict)
-    model.set_params({'N':1})
-    realspikes = model._detect_real_spikes()
-    real_spike_curve,_ = compute_FI_curve(realspikes, model._run_time)
-    
-    simspikes,_ = model.build_FI_curve()
-    simspikes = simspikes[0]
-    mse = compute_mse(np.asarray(real_spike_curve),np.hstack(simspikes))
-    plot(np.arange(simspikes.shape[0]), simspikes, label=f"Sim FI")
-    plot(np.arange(simspikes.shape[0]), real_spike_curve, label=f"Real FI")
-    plot(np.arange(simspikes.shape[0]), model.realFI, label=f"model Real FI")
-    
-    legend()
-
-def load_data_and_model(file, Cm=11.70570803, taum=16.3721611190163, sweep_upper_cut=9):
-    #% Opening ABF/Or nwb %#
-    file_path = file
-    extension = os.path.splitext(file_path)[1]
-    if '.abf' in extension:
-        realX, realY, realC = loadABF(file_path)
-    else:
-        realX, realY, realC,_ = loadNWB(file_path)
-    index_3 = np.argmin(np.abs(realX[0,:]-2))
-    realX, realY, realC = realX[:sweep_upper_cut,:index_3], realY[:sweep_upper_cut,:index_3], realC[:sweep_upper_cut,:index_3]
-    sweeplim = np.arange(realX.shape[0])
-    dt = compute_dt(realX)
-    compute_el = compute_rmp(realY[:3,:], realC[:3,:])
-    sweepwise_el = np.array([compute_rmp(realY[x,:].reshape(1,-1), realC[x,:].reshape(1,-1)) for x in np.arange(realX.shape[0])])
-    sweep_offset = (sweepwise_el - compute_el).reshape(-1,1)
-    realY = realY - sweep_offset
-
-
-    spike_time = detect_spike_times(realX, realY, realC, sweeplim)
-    thres = compute_threshold(realX, realY, realC, sweeplim)
-    model = adExModel({'EL': compute_el, 'dt':dt, '_run_time':2, 'Cm': Cm, 'taum': taum, 'fitcm': Cm, 'fittau': taum})
-    spike_sweeps = np.nonzero([len(x) for x in spike_time])[0]
-    subt_sweeps = np.arange(spike_sweeps[0])
-    model.add_real_data(realX, realY, realC, spike_time, subt_sweeps, spike_sweeps)
-    model.build_params_from_data()
-    return model
-
 def run_optimizer(file, Cm, taum, optimizer='ng', rounds_=5000, batch_size_=15000):
     ''' Runs the optimizer for a given file, using user specfied params and rounds
 
@@ -329,127 +266,54 @@ def SNPE_OPT(model, id='nan', use_post=True, refit_post=False, run_ng=True, earl
     df.to_csv(f'output//{id}_spike_fit_opt_CSV.csv')
     return df
 
-def biphase_nevergrad_opt(model, var_pairs, _labels, id='nan'):
-        import nevergrad as ng
-        var_list = []
-        for i, var in enumerate(var_pairs):
-            temp_var = ng.p.Scalar(lower=var[0], upper=var[1]) #Define them in the space that nevergrad wants
-            print(f"{_labels[i]} : low: {var[0]} High: {var[1]}")
-            #var_std = np.abs((var[1] - var[0]/3))
-            #temp_var.set_mutation(var_std)
-            var_list.append(temp_var)
-        var_tuple = tuple(var_list)
-        
-        ## Fix the params for subthreshold fitting:
-        var_dict = ng.p.Dict(Cm=var_tuple[0], taum=var_tuple[1], EL=var_tuple[2], a=var_tuple[3],  tauw=var_tuple[5])
-        model.set_params({'N': batch_size})
-        var_pairs_subt = var_pairs[:6]
-        budget = int(rounds * batch_size)
-        #TBPSAwithLHS = ng.optimizers.Chaining([ng.optimizers.ScrHammersleySearch, ng.optimizers.TwoPointsDE], [int(batch_size*7)])
-        opt = snmOptimizer(var_pairs_subt, ['Cm', 'taum', 'EL', 'a','b', 'tauw'], batch_size, rounds, backend='ng', nevergrad_opt=ng.optimizers.ParaPortfolio)#TBPSAwithLHS(parametrization=var_dict, num_workers=batch_size)
-        min_ar = []
-        print(f"== Starting Optimizer with {rounds} rounds ===")
-        for i in np.arange(rounds):
-            print(f"iter {i} start")
-            model.set_params({'N': batch_size, 'refractory':0, 'VT':0, 'DeltaT': 0 + 1e-5})
-            t_start = time.time()
-            param_list_temp = []
-            param_list = []
-            param_list = opt.ask()
-            param_dict = param_list
-            print(f"sim {(time.time()-t_start)/60} min start")
-            error_t = model.opt_trace(param_dict)
-            y = np.nan_to_num(error_t, nan=9999) 
-            print(f"sim {(time.time()-t_start)/60} min end")
-            opt.tell(param_list, y) ##Tells the optimizer the param - error pairs so it can learn
-            t_end = time.time()
-            min_ar.append(np.sort(y)[:5])
-            if len(min_ar) > 25:
-                 if _check_min_loss_gradient(min_ar, num_no_improvement=25) == False:
-                     break
-            print(f"iter {i} excuted in {(t_end-t_start)/60} min, with error {np.amin(y)} with a min trace error {error_t[np.argmin(y)]} ") #    
-        results = opt.get_result()  #returns a result containing the param - error matches
-        #Now intialize for F-I fitting
-        #fix to the best fit values
-        model.set_params(results)
-        var_dict = ng.p.Dict(VT=var_tuple[5], VR=var_tuple[6],b=var_tuple[7])
-        model.set_params({'N': batch_size})
-        var_pairs_fi = [var_pairs[4], *var_pairs[6:]]
-        fi_labels = ['b','DeltaT', 'VT', 'VR', 
-                    'refrac']
-        budget = int(rounds * batch_size)
-        opt = snmOptimizer(var_pairs_fi, fi_labels, batch_size, rounds, backend='ng')
-        min_ar = []
-        for i in np.arange(rounds):
-            print(f"iter {i} start")
-            model.set_params({'N': batch_size})
-            t_start = time.time()
-            param_list_temp = []
-            param_list = []
-            param_list = opt.ask()
-            param_dict = param_list
-            print(f"sim {(time.time()-t_start)/60} min start")
-            error_fi = model.opt_FI(param_dict)
-            y = error_fi
-            print(f"sim {(time.time()-t_start)/60} min end")
-            opt.tell(param_list, y) ##Tells the optimizer the param - error pairs so it can learn
-            t_end = time.time()
-            min_ar.append(np.sort(y)[:5])
-            print(f"iter {i} excuted in {(t_end-t_start)/60} min, with error {np.amin(y)} with a min FI error {error_fi[np.argmin(y)]} ")
-            if len(min_ar) > 25:
-                 if _check_min_loss_gradient(min_ar, num_no_improvement=25) == False:
-                     break
-        results.update(opt.get_result())
-
-        results_out = results
-        print("=== Saving Results ===")
-        df = pd.DataFrame(results_out, index=[0])
-        df.to_csv(f'output//{id}_spike_fit_opt_CSV.csv')
-        min_dict = results_out
-        plot_IF(min_dict, model)
-        plt.savefig(f"output//{id}_fit_IF.png")
-        plot_results(min_dict, model)
-        plt.savefig(f"output//{id}_fit_vm.png")
-        
-        print("=== Results Saved ===")
-        return results_out
-
 
 def nevergrad_opt(model, id='nan'):
+    """Runs a nevergrad based optimizer on the model
+
+    Args:
+        model (b2_model): Model object containing a brian2 model and the linked intracellular data
+        id (str, optional): Optional string to id the model. Defaults to 'nan'.
+
+    Returns:
+        DataFrame: a dataframe containing the best fit.
+    """
     import nevergrad as ng
 
+    #pack the variables into a dictionary for nevergrad
     var_list = []
     for var in vars:
-        temp_var = ng.p.Scalar(lower=var[0], upper=var[1])
+        temp_var = ng.p.Scalar(lower=var[0], upper=var[1]) #splitting the highs and lows into two variables
         var_list.append(temp_var)
     var_tuple = tuple(var_list)
-
-    var_dict = ng.p.Dict(VT=var_tuple[0], tauw=var_tuple[1], a=var_tuple[2], b=var_tuple[3], DeltaT=var_tuple[4], VR=var_tuple[5], DeltaA=var_tuple[6], Ea=var_tuple[7], Va=var_tuple[8])
+    var_dict = ng.p.Dict(Cm=var_tuple[0], taum=var_tuple[1], EL=var_tuple[2], a=var_tuple[3], b=var_tuple[4],  tauw=var_tuple[5],  DeltaT=var_tuple[6], VT=var_tuple[7], VR=var_tuple[8], refrac=var_tuple[9])
+    #set the model parameters
     model.set_params({'N': batch_size})
     budget = int(rounds * batch_size)
-    
-    TBPSAwithLHS = ng.optimizers.Chaining([ng.optimizers.ScrHammersleySearch, ng.optimizers.TBPSA], ["num_workers"])
+    #create the optimizer
     opt = ng.optimizers.ParaPortfolio(parametrization=var_dict, num_workers=batch_size, budget=budget)
     
     print(f"== Starting Optimizer with {rounds} rounds ===")
     for i in np.arange(rounds):
         print(f"iter {i} start")
-        model.set_params({'N': batch_size, 'refractory':1})
+        #test the paramters
+        model.set_params({'N': batch_size})
         t_start = time.time()
+        #ask the optimizer for the parameters
         param_list_temp = []
         param_list = []
         for p in np.arange(batch_size):
             temp = opt.ask()
             param_list.append(temp.value)
             param_list_temp.append(temp)
+        #pack the parameters into a dict
         param_list = pd.DataFrame(param_list)
-        param_dict = {'VT': param_list['VT'].to_numpy(), 'tauw': param_list['tauw'].to_numpy(), 'a':param_list['a'].to_numpy(), 
-                      'b':param_list['b'].to_numpy(), 'DeltaT': param_list['DeltaT'].to_numpy(), 'VR': param_list['VR'].to_numpy(), 
-                      'DeltaA': param_list['DeltaA'].to_numpy() + 1e-8, 'Ea': param_list['Ea'].to_numpy(), 'Va':param_list['Va'].to_numpy()}
+        param_dict = {'Cm': param_list['Cm'].to_numpy(), 'taum': param_list['taum'].to_numpy(), 'EL': param_list['EL'].to_numpy(), 
+                        'VT': param_list['VT'].to_numpy(), 'tauw': param_list['tauw'].to_numpy(), 'a':param_list['a'].to_numpy(), 
+                        'b':param_list['b'].to_numpy(), 'DeltaT': param_list['DeltaT'].to_numpy(), 'VR': param_list['VR'].to_numpy(), 'refrac': param_list['refrac'].to_numpy()}
         print(f"sim {(time.time()-t_start)/60} min start")
+        #test the parameters on the model
         error_t, error_fi, error_s = model.opt_trace(param_dict) / 10, model.opt_FI(param_dict), model.opt_spikes(param_dict) /1000
-        error_fi = np.nan_to_num(error_fi, nan=999999) * 1000
-        error_t = np.log10(error_t+10)
+        error_fi = np.nan_to_num(error_fi, nan=999999) * 50
         error_t  = np.nan_to_num(error_t , nan=999999, posinf=99999, neginf=99999)
         y = error_fi + error_t + error_s
         y = np.nan_to_num(y, nan=999999)
@@ -459,8 +323,8 @@ def nevergrad_opt(model, id='nan'):
         t_end = time.time()
         print(f"iter {i} excuted in {(t_end-t_start)/60} min, with error {np.amin(y)} with a min trace error {error_t[np.argmin(y)]} and FI error of {error_fi[np.argmin(y)]} and spike error of {error_s[np.argmin(y)]}") #
         if (i>-1) and (i%1 == 0):
-           #dump(opt, 'output//opt_checkpoint.joblib', compress=9)
-           print('checkpoint saved')##Every 50 iter save the optimizer state (in case of crash) #
+           
+           print('checkpoint saved')
            results = opt.provide_recommendation().value 
            model.set_params({'N': 1})
            #returns a result containing the param - error matches
@@ -482,6 +346,70 @@ def nevergrad_opt(model, id='nan'):
     df.to_csv(f'output//{id}_spike_fit_opt_CSV.csv')
     return df
     
+
+def plot_results(param_dict, model):
+    realX, realY = model.realX, model.realY
+    figure(figsize=(10,10), num=15)
+    clf()
+    model.set_params(param_dict)
+    model.set_params({'N': 1})
+    print(model.get_params())
+    for x in [0,3,5]:
+        spikes, traces = model.run_current_sweep(x)
+        
+        plot(realX[x,:], realY[x,:], label=f"Real Sweep {x}", c='k')
+        plot(realX[x,:], traces.v[0] /mV, label="Sim sweep {x}", c='r')
+        if len(spikes.t) > 0:
+            scatter(spikes.t, np.full(spikes.t.shape[0], 60) ,label="Sim spike times", c='r')
+    
+    ylim(-100, 70)
+    return
+
+def plot_IF(param_dict, model):
+    realX, realY, realC = model.realX, model.realY, model.realC
+    figure(figsize=(10,10), num=13)
+    clf()
+    model.set_params(param_dict)
+    model.set_params({'N':1})
+    realspikes = model._detect_real_spikes()
+    real_spike_curve,_ = compute_FI_curve(realspikes, model._run_time)
+    
+    simspikes,_ = model.build_FI_curve()
+    simspikes = simspikes[0]
+    mse = compute_mse(np.asarray(real_spike_curve),np.hstack(simspikes))
+    plot(np.arange(simspikes.shape[0]), simspikes, label=f"Sim FI")
+    plot(np.arange(simspikes.shape[0]), real_spike_curve, label=f"Real FI")
+    plot(np.arange(simspikes.shape[0]), model.realFI, label=f"model Real FI")
+    
+    legend()
+
+def load_data_and_model(file, Cm=11.70570803, taum=16.3721611190163, sweep_upper_cut=9):
+    #% Opening ABF/Or nwb %#
+    file_path = file
+    extension = os.path.splitext(file_path)[1]
+    if '.abf' in extension:
+        realX, realY, realC = loadABF(file_path)
+    else:
+        realX, realY, realC,_ = loadNWB(file_path)
+    index_3 = np.argmin(np.abs(realX[0,:]-2))
+    realX, realY, realC = realX[:sweep_upper_cut,:index_3], realY[:sweep_upper_cut,:index_3], realC[:sweep_upper_cut,:index_3]
+    sweeplim = np.arange(realX.shape[0])
+    dt = compute_dt(realX)
+    compute_el = compute_rmp(realY[:3,:], realC[:3,:])
+    sweepwise_el = np.array([compute_rmp(realY[x,:].reshape(1,-1), realC[x,:].reshape(1,-1)) for x in np.arange(realX.shape[0])])
+    sweep_offset = (sweepwise_el - compute_el).reshape(-1,1)
+    realY = realY - sweep_offset
+
+
+    spike_time = detect_spike_times(realX, realY, realC, sweeplim)
+    thres = compute_threshold(realX, realY, realC, sweeplim)
+    model = adExModel({'EL': compute_el, 'dt':dt, '_run_time':2, 'Cm': Cm, 'taum': taum, 'fitcm': Cm, 'fittau': taum})
+    spike_sweeps = np.nonzero([len(x) for x in spike_time])[0]
+    subt_sweeps = np.arange(spike_sweeps[0])
+    model.add_real_data(realX, realY, realC, spike_time, subt_sweeps, spike_sweeps)
+    model.build_params_from_data()
+    return model
+
 if __name__ == "__main__": 
     print("Running Script from commandline not yet supported")
 
